@@ -8,10 +8,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -28,6 +31,7 @@ import (
 	"github.com/geshas/mailroutine/internal/runner"
 	"github.com/geshas/mailroutine/internal/scheduler"
 	"github.com/geshas/mailroutine/internal/security"
+	"github.com/geshas/mailroutine/internal/setup"
 	"github.com/geshas/mailroutine/internal/sqlite"
 	"github.com/geshas/mailroutine/pkg/engine"
 	"github.com/geshas/mailroutine/pkg/models"
@@ -191,7 +195,7 @@ func serve() error {
 	}
 	cfg, err := config.Load()
 	if err != nil {
-		return err
+		return runSetup(err)
 	}
 	logger, closeLog, err := logging.New(logging.Options{
 		Level: cfg.LogLevel, Format: cfg.LogFormat, FilePath: cfg.LogFilePath,
@@ -295,4 +299,47 @@ func serve() error {
 	run.Shutdown(shutdownCtx)
 	log.Info("MailRoutine stopped")
 	return serveErr
+}
+
+// runSetup is what an unconfigured container does instead of exiting: it reports the problems
+// and serves the stateless setup page, so people without a shell (Portainer, NAS UIs) can
+// generate the password hash and secrets. Set MAILROUTINE_SETUP=off to fail fast instead.
+func runSetup(problems error) error {
+	if strings.EqualFold(os.Getenv("MAILROUTINE_SETUP"), "off") {
+		return problems
+	}
+	host, port := os.Getenv("HTTP_ADDR"), os.Getenv("HTTP_PORT")
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	if port == "" {
+		port = "8080"
+	}
+	if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+		return problems // cannot even listen; report the original error
+	}
+	fmt.Fprintln(os.Stderr, "error:", problems)
+	fmt.Fprintf(os.Stderr, "\nMailRoutine is not configured yet. Serving the setup page on %s:%s (open it in a browser).\n"+
+		"Set the missing variables and restart; set MAILROUTINE_SETUP=off to exit instead.\n", host, port)
+
+	srv := &http.Server{
+		Addr: net.JoinHostPort(host, port), Handler: setup.Handler(problems.Error(), version),
+		ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: time.Minute,
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	errCh := make(chan error, 1)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+	}()
+	select {
+	case <-ctx.Done():
+	case err := <-errCh:
+		return err
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return srv.Shutdown(shutdownCtx)
 }

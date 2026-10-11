@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -243,6 +245,7 @@ func TestServeLifecycle(t *testing.T) {
 }
 
 func TestServeStartupFailures(t *testing.T) {
+	t.Setenv("MAILROUTINE_SETUP", "off")
 	// Missing configuration.
 	for _, k := range []string{"ADMIN_PASSWORD_HASH", "SESSION_SECRET", "ENCRYPTION_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"} {
 		t.Setenv(k, "")
@@ -294,6 +297,7 @@ func TestServePortInUse(t *testing.T) {
 }
 
 func TestRunDefaultsToServe(t *testing.T) {
+	t.Setenv("MAILROUTINE_SETUP", "off")
 	for _, k := range []string{"ADMIN_PASSWORD_HASH", "SESSION_SECRET", "ENCRYPTION_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"} {
 		t.Setenv(k, "")
 	}
@@ -400,4 +404,72 @@ func TestServeMaintenanceAndRecoveryAtStartup(t *testing.T) {
 func modelsRoutine(accountID string, next *time.Time) models.Routine {
 	return models.Routine{AccountID: accountID, Name: "seeded", GmailQuery: "label:x", ActionType: models.ActionArchive,
 		ScheduleType: models.ScheduleDaily, ScheduleConfig: models.ScheduleConfig{Time: "03:00"}, Enabled: true, MaxMessagesPerRun: 10, NextRunAt: next}
+}
+
+func TestUnconfiguredContainerServesSetupPageInsteadOfExiting(t *testing.T) {
+	for _, k := range []string{"ADMIN_PASSWORD_HASH", "ADMIN_PASSWORD_HASH_B64", "SESSION_SECRET", "ENCRYPTION_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "MAILROUTINE_SETUP"} {
+		t.Setenv(k, "")
+	}
+	port := freePort(t)
+	t.Setenv("HTTP_ADDR", "127.0.0.1")
+	t.Setenv("HTTP_PORT", fmt.Sprint(port))
+	done := make(chan error, 1)
+	go func() { done <- serve() }()
+
+	base := fmt.Sprintf("http://127.0.0.1:%d", port)
+	var body string
+	for i := 0; i < 100 && body == ""; i++ {
+		if resp, err := http.Get(base + "/"); err == nil {
+			b, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			body = string(b)
+		} else {
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+	if !strings.Contains(body, "MailRoutine setup") || !strings.Contains(body, "ADMIN_PASSWORD_HASH") {
+		t.Fatalf("setup page not served: %q", body)
+	}
+	if resp, err := http.Get(base + "/health"); err != nil || resp.StatusCode != 503 {
+		t.Fatalf("health must report setup_required: %v %v", resp, err)
+	}
+	if resp, err := http.Get(base + "/api/dashboard"); err != nil || resp.StatusCode != 404 {
+		t.Fatal("the real API must not be exposed in setup mode")
+	}
+	syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("clean shutdown expected, got %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("setup server did not stop")
+	}
+}
+
+func TestSetupModeCanBeDisabledAndRejectsBadPort(t *testing.T) {
+	t.Setenv("ADMIN_PASSWORD_HASH", "")
+	t.Setenv("MAILROUTINE_SETUP", "off")
+	if err := runSetup(errors.New("boom")); err == nil || err.Error() != "boom" {
+		t.Fatalf("%v", err)
+	}
+	t.Setenv("MAILROUTINE_SETUP", "")
+	t.Setenv("HTTP_PORT", "99999")
+	if err := runSetup(errors.New("boom")); err == nil || err.Error() != "boom" {
+		t.Fatalf("an unusable port must surface the original configuration error: %v", err)
+	}
+}
+
+func TestSetupModeReportsPortInUse(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	t.Setenv("MAILROUTINE_SETUP", "")
+	t.Setenv("HTTP_ADDR", "127.0.0.1")
+	t.Setenv("HTTP_PORT", fmt.Sprint(l.Addr().(*net.TCPAddr).Port))
+	if err := runSetup(errors.New("boom")); err == nil {
+		t.Fatal("expected listen error")
+	}
 }

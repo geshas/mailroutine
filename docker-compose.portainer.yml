@@ -1,0 +1,48 @@
+# MailRoutine for Portainer (and any UI that has no shell): paste this into a new Stack.
+#
+# First deploy with the variables empty: the container starts in setup mode and serves a page at
+# APP_URL that generates ADMIN_PASSWORD_HASH_B64, SESSION_SECRET and ENCRYPTION_KEY for you.
+# Copy them into the stack's "Environment variables", add the Google credentials, and update the
+# stack. Details: README, section "Portainer / no shell".
+services:
+  mailroutine:
+    image: ghcr.io/geshas/mailroutine:latest
+    container_name: mailroutine
+    restart: unless-stopped
+
+    ports:
+      - "${PUBLISHED_PORT:-8080}:8080"
+
+    environment:
+      # The address you open in the browser (must match exactly; Google redirect URI is APP_URL + /api/accounts/google/callback)
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      TZ: ${TZ:-UTC}
+
+      # Filled in from the setup page
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD_HASH_B64: ${ADMIN_PASSWORD_HASH_B64:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+
+      # From your Google Cloud OAuth client (docs/oauth-setup.md)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+
+      # Optional
+      SESSION_IDLE_TIMEOUT: ${SESSION_IDLE_TIMEOUT:-30m}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+
+    volumes:
+      - mailroutine-data:/data
+
+    healthcheck:
+      test: ["CMD", "/app/mailroutine", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  # Named volume: no host folder permissions to sort out. Back it up together with ENCRYPTION_KEY.
+  mailroutine-data:

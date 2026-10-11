@@ -1,3 +1,4 @@
+# Using Portainer or another UI without a shell? Use docker-compose.portainer.yml instead.
 services:
   mailroutine:
     image: ghcr.io/geshas/mailroutine:latest

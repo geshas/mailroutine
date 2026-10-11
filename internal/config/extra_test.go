@@ -1,11 +1,14 @@
 package config
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/geshas/mailroutine/internal/security"
 )
 
 func TestLoadReadsProcessEnvironment(t *testing.T) {
@@ -81,5 +84,32 @@ func TestDurationAndBooleanParsing(t *testing.T) {
 	e["SESSION_RENEWAL_THRESHOLD"] = "0"
 	if _, err := load(e); err != nil {
 		t.Fatalf("zero threshold must be allowed: %v", err)
+	}
+}
+
+func TestAdminHashFromBase64Variant(t *testing.T) {
+	hash, _ := security.HashPassword("pw-for-b64")
+	env := baseEnv(t)
+	env["ADMIN_PASSWORD_HASH"] = ""
+	env["ADMIN_PASSWORD_HASH_B64"] = base64.StdEncoding.EncodeToString([]byte(hash))
+	c, err := load(env)
+	if err != nil || c.AdminPasswordHash != hash {
+		t.Fatalf("%v %v", c, err)
+	}
+	// The plain variable wins when both are set.
+	other, _ := security.HashPassword("different")
+	env["ADMIN_PASSWORD_HASH"] = other
+	if c, _ := load(env); c.AdminPasswordHash != other {
+		t.Fatal("ADMIN_PASSWORD_HASH must take precedence")
+	}
+	// Invalid base64 and base64 of a non-hash are rejected with a pointed message.
+	env["ADMIN_PASSWORD_HASH"] = ""
+	env["ADMIN_PASSWORD_HASH_B64"] = "%%%not base64%%%"
+	if _, err := load(env); err == nil || !strings.Contains(err.Error(), "ADMIN_PASSWORD_HASH_B64") {
+		t.Fatalf("%v", err)
+	}
+	env["ADMIN_PASSWORD_HASH_B64"] = base64.StdEncoding.EncodeToString([]byte("plaintext-password"))
+	if _, err := load(env); err == nil || !strings.Contains(err.Error(), "not a valid Argon2id") {
+		t.Fatalf("%v", err)
 	}
 }
