@@ -1,0 +1,160 @@
+openapi: 3.0.3
+info:
+  title: MailRoutine API
+  version: 0.1.0
+  license: { name: Apache-2.0, url: https://www.apache.org/licenses/LICENSE-2.0 }
+servers: [{ url: / }]
+components:
+  securitySchemes:
+    session: { type: apiKey, in: cookie, name: mailroutine_session }
+    csrf: { type: apiKey, in: header, name: X-CSRF-Token }
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            fields: { type: object, additionalProperties: { type: string } }
+    ScheduleConfig:
+      type: object
+      properties:
+        timezone: { type: string, example: Europe/Berlin }
+        minute: { type: integer, minimum: 0, maximum: 59 }
+        time: { type: string, example: '03:00' }
+        weekday: { type: integer, minimum: 0, maximum: 6 }
+        day_of_month: { type: integer, minimum: 1, maximum: 31 }
+    RoutineInput:
+      type: object
+      required: [account_id, name, gmail_query, action_type, schedule_type]
+      properties:
+        account_id: { type: string }
+        name: { type: string, maxLength: 120 }
+        description: { type: string }
+        gmail_query: { type: string, example: 'label:Newsletters older_than:7d' }
+        action_type: { type: string, enum: [archive, trash, mark_read, mark_unread, add_label, remove_label] }
+        action_config: { type: object, properties: { label: { type: string } } }
+        schedule_type: { type: string, enum: [manual, hourly, daily, weekly, monthly] }
+        schedule_config: { $ref: '#/components/schemas/ScheduleConfig' }
+        max_messages_per_run: { type: integer, minimum: 1, maximum: 10000 }
+        enabled: { type: boolean }
+        traceability: { type: boolean, description: 'Add MailRoutine/<Action> to handled messages. Default true on create; unchanged when omitted on update' }
+        confirm_destructive: { type: boolean }
+    Routine:
+      allOf:
+        - $ref: '#/components/schemas/RoutineInput'
+        - type: object
+          properties:
+            id: { type: string }
+            account_email: { type: string }
+            running: { type: boolean }
+            last_run_handled: { type: integer, nullable: true, description: Messages handled by the latest finished real run }
+            last_run_at: { type: string, format: date-time, nullable: true }
+            next_run_at: { type: string, format: date-time, nullable: true }
+    Run:
+      type: object
+      properties:
+        id: { type: string }
+        routine_id: { type: string }
+        routine_name: { type: string }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time, nullable: true }
+        status: { type: string, enum: [running, success, partial, failed, cancelled] }
+        matched_count: { type: integer }
+        processed_count: { type: integer }
+        failed_count: { type: integer }
+        error_message: { type: string }
+        dry_run: { type: boolean }
+        trigger: { type: string, enum: [schedule, manual] }
+    Account:
+      type: object
+      properties:
+        id: { type: string }
+        provider: { type: string }
+        email: { type: string }
+        connection_status: { type: string, enum: [connected, needs_reauth] }
+        created_at: { type: string, format: date-time }
+    Preview:
+      type: object
+      properties:
+        query: { type: string }
+        count: { type: integer }
+        count_is_estimate: { type: boolean }
+        has_more: { type: boolean }
+        messages:
+          type: array
+          items:
+            type: object
+            properties: { id: { type: string }, from: { type: string }, subject: { type: string }, date: { type: string, format: date-time } }
+    SessionInfo:
+      type: object
+      properties:
+        authenticated: { type: boolean }
+        username: { type: string }
+        expires_at: { type: string, format: date-time }
+        idle_timeout_seconds: { type: integer }
+        renewal_threshold_seconds: { type: integer }
+        csrf_token: { type: string }
+security: [{ session: [] }]
+paths:
+  /health: { get: { security: [], summary: Liveness, responses: { '200': { description: ok } } } }
+  /ready: { get: { security: [], summary: Readiness (database), responses: { '200': { description: ready }, '503': { $ref: '#/components/responses/Error' } } } }
+  /api/auth/login:
+    post:
+      security: []
+      summary: Sign in (JSON only; same-origin)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [username, password], properties: { username: { type: string }, password: { type: string } } } } } }
+      responses:
+        '200': { description: Signed in, content: { application/json: { schema: { $ref: '#/components/schemas/SessionInfo' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/auth/logout: { post: { security: [{ session: [], csrf: [] }], summary: Sign out, responses: { '204': { description: ok } } } }
+  /api/auth/session: { get: { summary: Validate session without extending it, responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/SessionInfo' } } } }, '401': { $ref: '#/components/responses/Error' } } } }
+  /api/auth/session/renew: { post: { security: [{ session: [], csrf: [] }], summary: Extend session after user activity, responses: { '200': { description: ok }, '401': { $ref: '#/components/responses/Error' } } } }
+  /api/dashboard: { get: { summary: Dashboard statistics, responses: { '200': { description: ok } } } }
+  /api/accounts: { get: { summary: List accounts, responses: { '200': { description: ok } } } }
+  /api/accounts/google/connect: { get: { summary: Begin Google OAuth (redirect, or JSON with Accept application/json), responses: { '302': { description: Redirect to Google }, '200': { description: '{"url": ...} when JSON is requested' } } } }
+  /api/accounts/google/callback: { get: { summary: OAuth callback, responses: { '302': { description: Redirect to /settings } } } }
+  /api/accounts/{id}: { delete: { security: [{ session: [], csrf: [] }], summary: Disconnect account, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '204': { description: ok }, '404': { $ref: '#/components/responses/Error' } } } }
+  /api/accounts/{id}/labels: { get: { summary: List Gmail labels, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: ok } } } }
+  /api/accounts/{id}/labels/mailroutine:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    get: { summary: Which MailRoutine traceability labels exist in the mailbox, responses: { '200': { description: ok } } }
+    post: { security: [{ session: [], csrf: [] }], summary: Create the missing MailRoutine labels (idempotent), responses: { '200': { description: 'report with created[]' }, '409': { $ref: '#/components/responses/Error' } } }
+  /api/routines:
+    get: { summary: List routines, responses: { '200': { description: ok } } }
+    post: { security: [{ session: [], csrf: [] }], summary: Create routine, requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RoutineInput' } } } }, responses: { '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/Routine' } } } }, '400': { $ref: '#/components/responses/Error' } } }
+  /api/routines/preview: { post: { security: [{ session: [], csrf: [] }], summary: Preview an unsaved query, responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Preview' } } } } } } }
+  /api/routines/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    get: { summary: Get routine, responses: { '200': { description: ok }, '404': { $ref: '#/components/responses/Error' } } }
+    put: { security: [{ session: [], csrf: [] }], summary: Replace routine, requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/RoutineInput' } } } }, responses: { '200': { description: ok } } }
+    delete: { security: [{ session: [], csrf: [] }], summary: Delete routine, responses: { '204': { description: ok }, '409': { $ref: '#/components/responses/Error' } } }
+  /api/routines/{id}/enable: { post: { security: [{ session: [], csrf: [] }], summary: Enable, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: ok } } } }
+  /api/routines/{id}/disable: { post: { security: [{ session: [], csrf: [] }], summary: Disable, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: ok } } } }
+  /api/routines/{id}/run: { post: { security: [{ session: [], csrf: [] }], summary: Run now (optionally dry run), parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '202': { description: started, content: { application/json: { schema: { $ref: '#/components/schemas/Run' } } } }, '409': { $ref: '#/components/responses/Error' } } } }
+  /api/routines/{id}/preview: { post: { security: [{ session: [], csrf: [] }], summary: Preview a saved routine, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: ok } } } }
+  /api/runs:
+    get:
+      summary: Run history
+      parameters:
+        - { name: routine_id, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [running, success, partial, failed, cancelled] } }
+        - { name: from, in: query, schema: { type: string, format: date-time }, description: Inclusive lower bound on start time }
+        - { name: to, in: query, schema: { type: string, format: date-time }, description: Exclusive upper bound on start time }
+        - { name: limit, in: query, schema: { type: integer, maximum: 100 } }
+        - { name: offset, in: query, schema: { type: integer } }
+      responses: { '200': { description: ok } }
+  /api/runs/{id}: { get: { summary: Run details with per-message results, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: ok }, '404': { $ref: '#/components/responses/Error' } } } }
+  /api/settings:
+    get: { summary: Settings and app info, responses: { '200': { description: ok } } }
+    put: { security: [{ session: [], csrf: [] }], summary: Update settings, responses: { '200': { description: ok } } }
