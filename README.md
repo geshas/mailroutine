@@ -184,7 +184,7 @@ Restore: stop the container, replace `data/mailroutine.db` with the backup (dele
 docker compose pull && docker compose up -d
 ```
 
-Database migrations are applied automatically at startup. Take a backup first. Pin a version (`ghcr.io/geshas/mailroutine:0.1.0`) for controlled upgrades.
+Database migrations are applied automatically at startup. Take a backup first. Pin a version (`ghcr.io/geshas/mailroutine:0.1.2`) for controlled upgrades.
 
 ## Troubleshooting
 
@@ -238,4 +238,4 @@ Apache License 2.0 – see [LICENSE](LICENSE). Copyright © MailRoutine contribu
 
 ## Releasing
 
-Tag `v0.1.0` and push the tag (`git tag v0.1.0 && git push origin v0.1.0`). The release workflow builds `linux/amd64` and `linux/arm64` images and publishes `ghcr.io/geshas/mailroutine:0.1.0`, `:0.1`, and `:latest` (stable tags only). After the first release, set the package visibility to *public* in GitHub → Packages.
+Update `CHANGELOG.md` and the web version, merge to `main` through a pull request, then tag the merge commit (`git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`). The release workflow builds `linux/amd64` and `linux/arm64` images and publishes `ghcr.io/geshas/mailroutine:X.Y.Z`, `:X.Y`, and `:latest` (stable tags only). The package must be set to *public* once in GitHub → Packages.
