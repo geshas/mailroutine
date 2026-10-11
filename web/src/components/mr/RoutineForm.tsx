@@ -20,6 +20,7 @@ import { Section } from "./common";
 import { PreviewDialog } from "./PreviewDialog";
 import { api, onUnauthorized } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
+import { toastAfterMount } from "@/lib/toast";
 import { q } from "@/lib/queries";
 import type { ActionType, PreviewResult, Routine, RoutineInput, ScheduleType } from "@/lib/api/types";
 import { ACTION_LABELS, DAYS, SCHEDULE_LABELS, TRACE_LABELS, buildGmailQuery, describeAction, describeSchedule, emptyQueryBuilder, queryTargetsInbox, relativeDay, windowIsEmpty, type QueryBuilder } from "@/lib/format";
@@ -109,10 +110,12 @@ export function RoutineForm({ routine }: { routine?: Routine }) {
   // Preserve unsaved edits if the session expires mid-edit; they are restored after signing back in.
   const snapshot = useRef<Draft | null>(null);
   snapshot.current = { name, accountId, advanced, builder, rawQuery, schedule, action, maxPerRun: maxTyped, enabled, traceability };
+  const announcedDraft = useRef(false);
   useEffect(() => {
-    if (draft) {
+    if (draft && !announcedDraft.current) {
+      announcedDraft.current = true;
       sessionStorage.removeItem(draftKey);
-      toast.info("Restored your unsaved changes", { description: "They were kept when your session expired." });
+      toastAfterMount(() => toast.info("Restored your unsaved changes", { description: "They were kept when your session expired." }));
     }
     return onUnauthorized(() => sessionStorage.setItem(draftKey, JSON.stringify(snapshot.current)));
   }, [draft, draftKey]);

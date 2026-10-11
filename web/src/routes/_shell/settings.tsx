@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -21,6 +21,7 @@ import { api } from "@/lib/api/client";
 import type { ApiError } from "@/lib/api/types";
 import { q } from "@/lib/queries";
 import { usePageTitle } from "@/lib/title";
+import { toastAfterMount } from "@/lib/toast";
 import type { ThemePreference } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -85,13 +86,18 @@ function SettingsPage() {
   const timezones = useMemo(() => timezoneOptions(settings.data?.timezone), [settings.data?.timezone]);
 
   // Report the outcome of the Google redirect once, then clean the URL.
+  const reported = useRef<string | null>(null);
   useEffect(() => {
     if (!search.connected && !search.oauth_error) return;
+    const key = `${search.connected ?? ""}|${search.oauth_error ?? ""}`;
+    if (reported.current === key) return; // StrictMode runs effects twice; report once
+    reported.current = key;
     if (search.connected) {
-      toast.success("Gmail account connected");
+      toastAfterMount(() => toast.success("Gmail account connected"));
       qc.invalidateQueries({ queryKey: ["accounts"] });
     } else if (search.oauth_error) {
-      toast.error("Couldn't connect Gmail", { description: OAUTH_MESSAGES[search.oauth_error] ?? `Google sign-in failed (${search.oauth_error}).` });
+      const description = OAUTH_MESSAGES[search.oauth_error] ?? `Google sign-in failed (${search.oauth_error}).`;
+      toastAfterMount(() => toast.error("Couldn't connect Gmail", { description }));
     }
     void navigate({ to: "/settings", search: {}, replace: true });
   }, [search.connected, search.oauth_error, navigate, qc]);
