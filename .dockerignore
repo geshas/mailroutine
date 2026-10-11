@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+data
+*.db
+*.log
+web/node_modules
+web/dist
+docs
+external
+web/coverage
+coverage.out

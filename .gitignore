@@ -1,0 +1,58 @@
+# ---- Secrets and local state (never commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+credentials*.json
+client_secret*.json
+/data/
+/backups/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+*.log
+/logs/
+
+# ---- Third-party UI reference clones (read-only inspiration) ----
+/external/
+
+# ---- Go build and test output ----
+/mailroutine
+/mailroutine.exe
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+coverage.out
+coverage.html
+go.work
+go.work.sum
+
+# ---- Web build and test output ----
+node_modules/
+web/dist/*
+!web/dist/.gitkeep
+web/coverage/
+web/.contract/
+web/.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+
+# ---- Editors / OS / local tooling ----
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.claude/

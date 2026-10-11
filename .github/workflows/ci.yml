@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Formatting
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - name: Vet
+        run: go vet ./...
+      - name: Test with coverage (fails below 95%)
+        run: make cover-go
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage
+          path: coverage.out
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Record real API responses (UI contract)
+        run: make contract
+      - run: npm ci
+        working-directory: web
+      - run: npm run lint
+        working-directory: web
+      - run: npm run typecheck
+        working-directory: web
+      - name: Unit tests with coverage (includes the contract check)
+        run: npm run test:coverage
+        working-directory: web
+        env:
+          CONTRACT_DIR: ${{ github.workspace }}/web/.contract
+      - run: npm run build
+        working-directory: web
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: govulncheck (known vulnerabilities in reachable Go code)
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - name: gosec (static analysis)
+        run: go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -exclude-dir=web -exclude-dir=external ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: npm audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=moderate
+        working-directory: web
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
