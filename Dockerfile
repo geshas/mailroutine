@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/mailroutine ./cmd/mailroutine
 
 # ---- Runtime ----
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk add --no-cache su-exec ca-certificates \
  && addgroup -S -g 10001 mailroutine \
  && adduser -S -u 10001 -G mailroutine -h /data mailroutine \

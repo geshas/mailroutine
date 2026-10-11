@@ -2,6 +2,15 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-10-11
+
+Maintenance release: refreshed the build and release toolchain. No application changes.
+
+### Changed
+- Container base image updated from Alpine 3.22 to 3.24 (picks up upstream security patches).
+- GitHub Actions updated to current, SHA-pinned releases: `setup-node` 7.1.0, `upload-artifact` 7.0.2, `docker/login-action` 4.6.0, `docker/setup-buildx-action` 4.4.1, `docker/setup-qemu-action` 4.4.0.
+- Dependabot no longer proposes TypeScript major upgrades (TypeScript 7 does not build the project yet) or non-LTS Node.js majors.
+
 ## [0.1.0] - 2026-10-11
 
 First public release.
