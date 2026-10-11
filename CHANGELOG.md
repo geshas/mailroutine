@@ -2,6 +2,20 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-10-11
+
+Makes MailRoutine deployable from Portainer and other UIs that have no shell.
+
+### Added
+- First-run **setup mode** for containers without a shell (Portainer, NAS UIs): when required configuration is missing, the container serves a stateless page that generates `SESSION_SECRET`, `ENCRYPTION_KEY` and the admin password hash to paste into the stack's environment, instead of exiting. Disable with `MAILROUTINE_SETUP=off`.
+- `ADMIN_PASSWORD_HASH_B64`: the admin hash base64-encoded, immune to `$` mangling by compose/Portainer/`.env` parsers.
+- `docker-compose.portainer.yml`: a stack file that deploys with empty variables, using a named data volume.
+- README section *Portainer / no shell*, SECURITY.md notes on setup mode, and a troubleshooting row for the setup page.
+
+### Changed
+- The "missing configuration" error now mentions `ADMIN_PASSWORD_HASH_B64` and the setup page.
+- An unconfigured container reports `/health` as 503 `setup_required` (unhealthy) until it is configured.
+
 ## [0.1.1] - 2026-10-11
 
 Maintenance release: refreshed the build and release toolchain. No application changes.

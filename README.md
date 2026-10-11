@@ -48,6 +48,19 @@ Open <http://localhost:8080>, sign in as `admin`, and connect Gmail under **Sett
 
 > `hash-password` works before any other configuration exists. If you cloned the repo and have not published an image yet, build first: `docker compose build` (uncomment `build:` in `docker-compose.yml`) or use the *build from source* path below.
 
+### Portainer / no shell
+
+If you manage containers through Portainer (or a NAS UI) you cannot run `mailroutine hash-password` first. You don't have to:
+
+1. Create a **Stack** from [`docker-compose.portainer.yml`](docker-compose.portainer.yml) and deploy it **with the variables empty**, except `APP_URL` (the address you will open, e.g. `http://192.168.1.20:8080`).
+2. The container starts in **setup mode** and serves a page at that address. Choose the administrator password there; the page generates `ADMIN_PASSWORD_HASH_B64`, `SESSION_SECRET` and `ENCRYPTION_KEY` and shows them in a block to copy.
+3. In Portainer open the stack → **Environment variables**, paste those values, add `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ([guide](docs/oauth-setup.md)), then **Update the stack**. The setup page is replaced by the real app.
+4. **Back up `ENCRYPTION_KEY`** somewhere safe: without it the stored Gmail connections cannot be decrypted.
+
+The setup page is stateless: it applies nothing and stores nothing, so it cannot be used to take over an installation, but anyone who can open it can see the freshly generated values on it. Use it on a trusted network or over HTTPS, and do not reuse a password from elsewhere. Set `MAILROUTINE_SETUP=off` if you prefer the container to exit on bad configuration instead.
+
+`ADMIN_PASSWORD_HASH_B64` is the same Argon2id hash as `ADMIN_PASSWORD_HASH`, base64-encoded so it contains no `$` characters that compose, Portainer or `.env` parsers could mangle. Either variable works; the plain one wins if both are set.
+
 ### Build from source with Docker
 
 ```bash
@@ -171,13 +184,14 @@ Restore: stop the container, replace `data/mailroutine.db` with the backup (dele
 docker compose pull && docker compose up -d
 ```
 
-Database migrations are applied automatically at startup. Take a backup first. Pin a version (`ghcr.io/geshas/mailroutine:0.1.0`) for controlled upgrades.
+Database migrations are applied automatically at startup. Take a backup first. Pin a version (`ghcr.io/geshas/mailroutine:0.1.2`) for controlled upgrades.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| Container exits immediately | `docker logs mailroutine` – it lists each invalid variable |
+| Container shows a setup page instead of the app | Required variables are missing: follow the page, or see *Portainer / no shell* above |
+| Container exits immediately | You set `MAILROUTINE_SETUP=off`; `docker logs mailroutine` lists each invalid variable |
 | `ADMIN_PASSWORD_HASH ... not a valid Argon2id` | Quote the hash with single quotes in `.env` |
 | `redirect_uri_mismatch` | Redirect URI in Google Cloud must equal the one in Settings exactly |
 | Gmail account shows *needs reconnect* | Token revoked/expired (7-day Testing limit) → Settings → Reconnect |
@@ -224,4 +238,4 @@ Apache License 2.0 – see [LICENSE](LICENSE). Copyright © MailRoutine contribu
 
 ## Releasing
 
-Tag `v0.1.0` and push the tag (`git tag v0.1.0 && git push origin v0.1.0`). The release workflow builds `linux/amd64` and `linux/arm64` images and publishes `ghcr.io/geshas/mailroutine:0.1.0`, `:0.1`, and `:latest` (stable tags only). After the first release, set the package visibility to *public* in GitHub → Packages.
+Update `CHANGELOG.md` and the web version, merge to `main` through a pull request, then tag the merge commit (`git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`). The release workflow builds `linux/amd64` and `linux/arm64` images and publishes `ghcr.io/geshas/mailroutine:X.Y.Z`, `:X.Y`, and `:latest` (stable tags only). The package must be set to *public* once in GitHub → Packages.
