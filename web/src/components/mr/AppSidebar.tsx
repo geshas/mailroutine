@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { History, LayoutDashboard, LogOut, Monitor, Moon, Repeat, Settings, Sun } from "lucide-react";
+import { Coffee, History, LayoutDashboard, LogOut, Monitor, Moon, Repeat, Settings, Sun } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Sidebar,
@@ -14,6 +14,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Button } from "@/components/ui/button";
 import { Logo } from "./common";
 import { useTheme } from "@/lib/theme";
 import { api } from "@/lib/api/client";
@@ -64,6 +65,13 @@ export function AppSidebar({ username }: { username: string }) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="gap-3 p-3">
+        <Button variant="outline" asChild>
+          <a href="https://paypal.me/geshasoft" target="_blank" rel="noopener noreferrer">
+            <Coffee aria-hidden="true" />
+            Buy me a coffee
+            <span className="sr-only"> (opens PayPal in a new tab)</span>
+          </a>
+        </Button>
         <ToggleGroup
           type="single"
           value={theme}

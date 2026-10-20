@@ -1,5 +1,7 @@
 # MailRoutine
 
+[☕ Buy me a coffee](https://paypal.me/geshasoft)
+
 **Scheduled automation for Gmail.** MailRoutine is a self-hosted service that runs recurring maintenance on your Gmail accounts in the background, for example *"every day at 03:00, archive everything matching `label:Newsletters older_than:7d`"*.
 
 It is **not an email client**. You keep using Gmail on the web and on your phone; MailRoutine just tidies up on a schedule.

@@ -2,6 +2,18 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.3] - 2026-10-20
+
+Maintenance release: dependency updates and clearer personal Google OAuth setup.
+
+### Added
+- A "Buy me a coffee" sidebar button and README link to the maintainer's PayPal.Me page.
+
+### Changed
+- Updated the Google API client and frontend dependencies, including React, Radix UI, TanStack and Vitest.
+- Updated SHA-pinned checkout, Go setup and Docker build/metadata GitHub Actions.
+- Clarified production OAuth publishing, the personal-use verification exception and reconnecting accounts previously authorized in Testing mode.
+
 ## [0.1.2] - 2026-10-11
 
 Makes MailRoutine deployable from Portainer and other UIs that have no shell.
