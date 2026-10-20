@@ -6,6 +6,9 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 Maintenance release: dependency updates and clearer personal Google OAuth setup.
 
+### Added
+- A "Buy me a coffee" sidebar button linking to the maintainer's PayPal.Me page.
+
 ### Changed
 - Updated the Google API client and frontend dependencies, including React, Radix UI, TanStack and Vitest.
 - Updated SHA-pinned checkout, Go setup and Docker build/metadata GitHub Actions.
