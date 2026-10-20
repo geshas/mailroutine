@@ -18,6 +18,10 @@ Security fixes are released for the latest minor version. Please update to the n
 - CI runs govulncheck, gosec and npm audit; Dependabot proposes dependency updates weekly.
 - Least-privilege Gmail scope (`gmail.modify`); no permanent deletion; message bodies are never fetched or stored.
 
+## Setup mode
+
+An unconfigured container serves a small setup page instead of exiting. It is stateless: it generates random values and hashes the password you type, prints them for you to copy, and applies nothing, so it grants no access to an installation. Its output is only shown to whoever opens the page, it is never cached, the page loads no scripts or external resources, and requests are rate limited. Run it on a trusted network or over HTTPS.
+
 ## Operator guidance
 
 Serve over HTTPS when reachable beyond localhost, keep `.env` and `ENCRYPTION_KEY` out of version control and backups-with-data, restrict access to the `/data` volume, and keep the image updated.

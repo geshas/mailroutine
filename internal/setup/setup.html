@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>MailRoutine setup</title>
+<style>
+  :root { color-scheme: light dark; --bg:#fafafa; --fg:#1b1f23; --muted:#57606a; --card:#fff; --border:#8c959f; --accent:#0e6b52; --accent-fg:#fff; --warn:#7a4b00; --warn-bg:#fff4dc; --err:#a1260d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1115; --fg:#e8eaee; --muted:#a0a8b5; --card:#181b22; --border:#6e7681; --accent:#5cc7a4; --accent-fg:#0b1511; --warn:#ffd68a; --warn-bg:#33270f; --err:#ff9b87; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 system-ui,sans-serif; }
+  main { max-width: 46rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+  h1 { margin:.2rem 0 .3rem; font-size:1.6rem; } h2 { font-size:1.1rem; margin:2rem 0 .5rem; }
+  p { margin:.4rem 0; } .muted { color:var(--muted); font-size:.9rem; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1rem 1.2rem; margin:1rem 0; }
+  .warn { background:var(--warn-bg); color:var(--warn); border:1px solid var(--warn); border-radius:8px; padding:.7rem 1rem; margin:1rem 0; }
+  .err { color:var(--err); font-weight:600; } pre.problems { white-space:pre-wrap; margin:.4rem 0 0; font:.85rem/1.4 ui-monospace,monospace; }
+  label { display:block; font-weight:600; margin:.8rem 0 .25rem; }
+  input[type=password] { width:100%; box-sizing:border-box; padding:.55rem .7rem; font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--border); border-radius:6px; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  button { margin-top:1rem; padding:.6rem 1.1rem; font:inherit; font-weight:600; background:var(--accent); color:var(--accent-fg); border:0; border-radius:6px; cursor:pointer; }
+  textarea { width:100%; box-sizing:border-box; min-height:9.5rem; padding:.7rem; font:.85rem/1.5 ui-monospace,monospace; color:var(--fg); background:var(--bg); border:1px solid var(--border); border-radius:6px; }
+  ol { padding-left:1.2rem; } code { font-family:ui-monospace,monospace; font-size:.9em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>MailRoutine setup</h1>
+  <p class="muted">This container is running but not configured yet{{if .Version}} (version {{.Version}}){{end}}.</p>
+
+  {{if .Problems}}<div class="card"><strong>What is missing</strong><pre class="problems">{{.Problems}}</pre></div>{{end}}
+
+  <div class="warn" role="note">
+    This page applies nothing. It only generates values for you to copy into your stack's environment variables.
+    Anyone who can open this page can see the secrets on it, so use it on a trusted network (or over HTTPS) and
+    do not reuse a password you use elsewhere. Once you redeploy with the values below, this page disappears.
+  </div>
+
+  {{if .HashB64}}
+    <h2>Copy these into your stack's environment</h2>
+    <div class="card">
+<textarea readonly rows="6" aria-label="Environment variables to copy">ADMIN_USERNAME={{.Username}}
+ADMIN_PASSWORD_HASH_B64={{.HashB64}}
+SESSION_SECRET={{.SessionSecret}}
+ENCRYPTION_KEY={{.EncryptionKey}}</textarea>
+      <p class="muted"><code>ADMIN_PASSWORD_HASH_B64</code> is your password hash encoded so it contains no <code>$</code> characters, which keeps compose, Portainer and <code>.env</code> files from mangling it.</p>
+    </div>
+    <h2>Then</h2>
+    <ol>
+      <li>Also set <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> (see <code>docs/oauth-setup.md</code>) and <code>APP_URL</code> to the address you open MailRoutine at.</li>
+      <li><strong>Back up <code>ENCRYPTION_KEY</code>.</strong> Without it the Gmail connections stored in your data volume cannot be decrypted.</li>
+      <li>Update / redeploy the stack. You will sign in as <code>{{.Username}}</code> with the password you just chose.</li>
+    </ol>
+    <p class="muted">If you lose this page before saving the values, just generate new ones: nothing was stored.</p>
+  {{else}}
+    <h2>1. Choose the administrator password</h2>
+    <form method="post" action="/" class="card" autocomplete="off">
+      {{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
+      <input type="hidden" name="session_secret" value="{{.SessionSecret}}">
+      <input type="hidden" name="encryption_key" value="{{.EncryptionKey}}">
+      <label for="password">Password (at least 8 characters)</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="256">
+      <label for="confirm">Repeat the password</label>
+      <input id="confirm" name="confirm" type="password" autocomplete="new-password" required minlength="8" maxlength="256">
+      <button type="submit">Generate configuration</button>
+    </form>
+    <p class="muted">Fresh random <code>SESSION_SECRET</code> and <code>ENCRYPTION_KEY</code> are created for you on this page and shown with the result.</p>
+  {{end}}
+</main>
+</body>
+</html>

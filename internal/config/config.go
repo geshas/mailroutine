@@ -2,6 +2,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -99,9 +100,18 @@ func LoadFrom(getenv Getenv) (*Config, error) {
 
 	c.AdminUsername = l.str("ADMIN_USERNAME", "admin")
 	c.AdminPasswordHash = l.str("ADMIN_PASSWORD_HASH", "")
+	// ADMIN_PASSWORD_HASH_B64 is the same hash base64-encoded: it contains no '$', so it survives
+	// compose interpolation, Portainer environment editors and .env parsers unchanged.
+	if b64 := l.str("ADMIN_PASSWORD_HASH_B64", ""); b64 != "" && c.AdminPasswordHash == "" {
+		if raw, err := base64.StdEncoding.DecodeString(b64); err != nil {
+			l.fail("ADMIN_PASSWORD_HASH_B64", "is not valid base64 (generate it with the setup page or: mailroutine hash-password)")
+		} else {
+			c.AdminPasswordHash = string(raw)
+		}
+	}
 	switch {
 	case c.AdminPasswordHash == "":
-		l.fail("ADMIN_PASSWORD_HASH", "is required; generate one with: mailroutine hash-password")
+		l.fail("ADMIN_PASSWORD_HASH", "is required (or ADMIN_PASSWORD_HASH_B64); generate one with: mailroutine hash-password, or open the setup page this container serves")
 	case security.ValidateHash(c.AdminPasswordHash) != nil:
 		l.fail("ADMIN_PASSWORD_HASH", "is not a valid Argon2id PHC hash (if it came from a .env file, wrap it in single quotes so '$' is preserved)")
 	}
