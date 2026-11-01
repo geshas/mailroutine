@@ -123,7 +123,7 @@ func (g *Google) Revoke(ctx context.Context, token string) error {
 		return fmt.Errorf("revoke request failed: %w", errors.Unwrap(err))
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 	if resp.StatusCode/100 != 2 {
 		return fmt.Errorf("google revoke returned HTTP %d", resp.StatusCode)
 	}

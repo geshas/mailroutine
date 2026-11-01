@@ -294,7 +294,7 @@ func LoadDotEnv(path string) error {
 			v = strings.TrimSpace(v[:i])
 		}
 		if _, set := os.LookupEnv(k); !set {
-			os.Setenv(k, v)
+			_ = os.Setenv(k, v)
 		}
 	}
 	return nil

@@ -93,6 +93,6 @@ func VerifyPassword(password, phc string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	got := argon2.IDKey([]byte(password), p.salt, p.time, p.memory, p.threads, uint32(len(p.key)))
+	got := argon2.IDKey([]byte(password), p.salt, p.time, p.memory, p.threads, uint32(len(p.key))) // #nosec G115 -- key is a decoded Argon2 hash, far below 4 GiB
 	return subtle.ConstantTimeCompare(got, p.key) == 1, nil
 }

@@ -116,7 +116,7 @@ func (s *Store) ListExecutions(ctx context.Context, f ExecutionFilter) ([]models
 	if f.Limit <= 0 {
 		f.Limit = 25
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT `+execCols+execFrom+where+` ORDER BY e.started_at DESC LIMIT ? OFFSET ?`,
+	rows, err := s.db.QueryContext(ctx, `SELECT `+execCols+execFrom+where+` ORDER BY e.started_at DESC LIMIT ? OFFSET ?`, // #nosec G202 -- only constant fragments are concatenated; values are bound args
 		append(args, f.Limit, f.Offset)...)
 	if err != nil {
 		return nil, 0, err
