@@ -52,20 +52,20 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	db.SetMaxOpenConns(8)
 	db.SetConnMaxLifetime(0)
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("open database %q: %w", path, err)
 	}
 	if path != ":memory:" {
 		// Owner-only: the database holds encrypted tokens, session hashes and run history.
 		// SQLite creates the -wal/-shm files with the same mode as the main file.
 		if err := os.Chmod(path, 0o600); err != nil {
-			db.Close()
+			_ = db.Close()
 			return nil, fmt.Errorf("restrict database permissions: %w", err)
 		}
 	}
 	s := &Store{db: db}
 	if err := s.migrate(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 	return s, nil
@@ -137,7 +137,7 @@ func (s *Store) inTx(ctx context.Context, fn func(*sql.Tx) error) error {
 		return err
 	}
 	if err := fn(tx); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 	return tx.Commit()

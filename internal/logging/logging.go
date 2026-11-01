@@ -59,7 +59,7 @@ func New(o Options) (*slog.Logger, io.Closer, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("LOG_FILE_PATH: cannot write %q: %w", o.FilePath, err)
 		}
-		f.Close()
+		_ = f.Close()
 		lj := &lumberjack.Logger{
 			Filename: o.FilePath, MaxSize: max(o.MaxSizeMB, 1), MaxBackups: o.MaxBackups,
 			MaxAge: o.MaxAgeDays, Compress: o.Compress,

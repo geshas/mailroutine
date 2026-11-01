@@ -33,7 +33,7 @@ func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request, _ sq
 }
 
 func (s *Server) oauthCookie(w http.ResponseWriter, name, value string, ttl time.Duration) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure is operator-configurable (SECURE_COOKIES) to allow plain-HTTP LAN installs
 		Name: name, Value: value, Path: "/api/accounts/google", MaxAge: int(ttl.Seconds()),
 		HttpOnly: true, Secure: s.Config.SecureCookies, SameSite: http.SameSiteLaxMode,
 	})

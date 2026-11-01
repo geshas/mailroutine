@@ -154,7 +154,7 @@ func backup(dest string, stdout io.Writer) error {
 	if dbPath == "" {
 		dbPath = "/data/mailroutine.db"
 	}
-	if _, err := os.Stat(dbPath); err != nil {
+	if _, err := os.Stat(dbPath); err != nil { // #nosec G703 -- path comes from operator config
 		return fmt.Errorf("database %q not found: %w", dbPath, err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -178,7 +178,7 @@ func healthcheck() error {
 		port = "8080"
 	}
 	c := &http.Client{Timeout: 4 * time.Second}
-	resp, err := c.Get("http://127.0.0.1:" + port + "/health")
+	resp, err := c.Get("http://127.0.0.1:" + port + "/health") // #nosec G704 -- fixed loopback host, port from operator config
 	if err != nil {
 		return err
 	}

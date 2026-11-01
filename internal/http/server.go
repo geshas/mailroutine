@@ -299,14 +299,14 @@ func (s *Server) setSessionCookie(w http.ResponseWriter, token string, sess sqli
 	if maxAge < 1 {
 		maxAge = 1
 	}
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure is operator-configurable (SECURE_COOKIES) to allow plain-HTTP LAN installs
 		Name: sessionCookie, Value: token, Path: "/", MaxAge: maxAge, HttpOnly: true,
 		Secure: s.Config.SecureCookies, SameSite: http.SameSiteLaxMode,
 	})
 }
 
 func (s *Server) clearSessionCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true,
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, // #nosec G124 -- Secure is operator-configurable (SECURE_COOKIES) to allow plain-HTTP LAN installs
 		Secure: s.Config.SecureCookies, SameSite: http.SameSiteLaxMode})
 }
 
@@ -368,7 +368,7 @@ func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	f, err := s.Static.Open(p)
 	if err == nil {
 		st, serr := f.Stat()
-		f.Close()
+		_ = f.Close()
 		if serr == nil && st.IsDir() {
 			err = fs.ErrNotExist
 		}
